@@ -33,4 +33,4 @@ __pycache__/
 # 出力フォルダごと除外したい場合
 # output/
 # outputs/
-# EOF
+# EOF*.aux.xml
