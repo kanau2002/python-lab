@@ -17,6 +17,8 @@ cat > .gitignore << 'EOF'
 *.kmz
 *.csv
 *.json
+*.xml
+*.aux.xml
 
 # Python環境
 .env
@@ -33,4 +35,5 @@ __pycache__/
 # 出力フォルダごと除外したい場合
 # output/
 # outputs/
-# EOF*.aux.xml
+# EOF
+
