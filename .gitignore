@@ -1,4 +1,15 @@
-cat > .gitignore << 'EOF'
+# Mac
+.DS_Store
+
+# Python環境
+.env
+bin/
+lib/
+pyvenv.cfg
+__pycache__/
+*.pyc
+*.pyo
+
 # データファイル（画像・地理空間）
 *.tif
 *.tiff
@@ -19,21 +30,3 @@ cat > .gitignore << 'EOF'
 *.json
 *.xml
 *.aux.xml
-
-# Python環境
-.env
-bin/
-lib/
-pyvenv.cfg
-__pycache__/
-*.pyc
-*.pyo
-
-# Mac
-.DS_Store
-
-# 出力フォルダごと除外したい場合
-# output/
-# outputs/
-# EOF
-
