@@ -1,0 +1,36 @@
+cat > .gitignore << 'EOF'
+# データファイル（画像・地理空間）
+*.tif
+*.tiff
+*.png
+*.jpg
+*.jpeg
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.qpj
+*.geojson
+*.gpkg
+*.kml
+*.kmz
+*.csv
+*.json
+
+# Python環境
+.env
+bin/
+lib/
+pyvenv.cfg
+__pycache__/
+*.pyc
+*.pyo
+
+# Mac
+.DS_Store
+
+# 出力フォルダごと除外したい場合
+# output/
+# outputs/
+# EOF
