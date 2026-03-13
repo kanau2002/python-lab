@@ -1,6 +1,6 @@
 from pathlib import Path
-from lib.tiles_coordinate_calculator import lat_lon_to_tile
-from lib.google_map_tiles_downloader import GoogleMapTilesDownloader
+from util.tiles_coordinate_calculator import lat_lon_to_tile
+from util.google_map_tiles_downloader import GoogleMapTilesDownloader
 
 def main():
     north_lat = 35.369656

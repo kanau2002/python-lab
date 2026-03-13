@@ -1,6 +1,6 @@
 from pathlib import Path
-from lib.tiles_coordinate_calculator import get_tiles_in_city
-from lib.google_map_tiles_downloader import GoogleMapTilesDownloader
+from util.tiles_coordinate_calculator import get_tiles_in_city
+from util.google_map_tiles_downloader import GoogleMapTilesDownloader
 
 def main():
     city_name = "浦安市"
