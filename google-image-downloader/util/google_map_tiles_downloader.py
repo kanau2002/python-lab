@@ -80,9 +80,6 @@ class GoogleMapTilesDownloader:
                 time.sleep(2 ** attempt)  # 1, 2, 4, 8秒と増加
 
     def download_tiles(self, tiles: list, zoom: int):
-        pattern = f"tile_z{zoom}_x*_y*.tif"
-        before_count = len(list(self.output_dir.glob(pattern)))
-
         pending = [
             (x, y) for x, y in tiles
             if not (self.output_dir / f"tile_z{zoom}_x{x}_y{y}.tif").exists()
@@ -91,32 +88,25 @@ class GoogleMapTilesDownloader:
         print(f"取得済: {total - len(pending)}/{total}枚 残り: {len(pending)}枚")
 
         last_saved = None
-        stop_requested = False
-        first_error = None
+        count = 0
 
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = {
                 executor.submit(self.download_tile, zoom, x, y): (x, y)
                 for x, y in pending
             }
-
             for future in as_completed(futures):
                 try:
-                    saved = future.result()
-                    if saved:
-                        last_saved = saved
+                    last_saved = future.result()
+                    count += 1
+                    if count % 100 == 0:
+                        print(f"進捗: {count}/{len(pending)}枚")
                 except Exception as e:
-                    if not stop_requested:
-                        stop_requested = True
-                        first_error = e
-                        print(f"エラーが発生したため本日の取得を終了します: {e}")
-                        for f in futures:
-                            f.cancel()
-                    # break しない: 実行中だったタスクの完了分を最後まで回収する
+                    print(f"エラーが発生したため本日の取得を終了します: {e}")
+                    for f in futures:
+                        f.cancel()
+                    break
 
-        after_count = len(list(self.output_dir.glob(pattern)))
-        today_count = max(0, after_count - before_count)
-
-        print(f"本日の取得完了: {today_count}枚")
+        print(f"本日の取得完了: {count}枚")
         if last_saved:
             print(f"最後に保存したファイル: {last_saved}")
