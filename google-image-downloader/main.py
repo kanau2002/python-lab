@@ -3,8 +3,7 @@ from util.tiles_coordinate_calculator import get_tiles_in_city
 from util.google_map_tiles_downloader import GoogleMapTilesDownloader
 
 def main():
-    # city_name = "酒々井町"
-    city_name = "神崎町"
+    city_name = "長生村"
     zoom_level = 20
     
     tiles = get_tiles_in_city(city_name, zoom_level)
