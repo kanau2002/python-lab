@@ -12,7 +12,7 @@ from rasterio.transform import from_bounds
 TILE_FILENAME_PATTERN = re.compile(r"tile_z(\d+)_x(\d+)_y(\d+)\.tif$")
 
 TARGET_RESOLUTION_M = 0.2
-WORKERS = 4
+WORKERS = 8
 LOG_INTERVAL = 1000
 
 
@@ -84,23 +84,16 @@ def run_downsampling(input_dir: Path, output_dir: Path) -> dict[str, int]:
 	total_files = len(tile_files)
 	processed = 0
 
-	if WORKERS <= 1:
-		for idx, tile_file in enumerate(tile_files, start=1):
-			downsample_tile(tile_file, output_dir / tile_file.name, new_size)
+	jobs = [(tf, output_dir / tf.name, new_size) for tf in tile_files]
+	with ThreadPoolExecutor(max_workers=WORKERS) as executor:
+		future_map = {
+			executor.submit(downsample_tile, input_path, output_path, size): None
+			for input_path, output_path, size in jobs
+		}
+		for future in as_completed(future_map):
+			future.result()
 			processed += 1
-			if idx % LOG_INTERVAL == 0 or idx == total_files:
-				print(f"Downsampling progress: {idx}/{total_files}")
-	else:
-		jobs = [(tf, output_dir / tf.name, new_size) for tf in tile_files]
-		with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-			future_map = {
-				executor.submit(downsample_tile, input_path, output_path, size): None
-				for input_path, output_path, size in jobs
-			}
-			for future in as_completed(future_map):
-				future.result()
-				processed += 1
-				if processed % LOG_INTERVAL == 0 or processed == total_files:
-					print(f"Downsampling progress: {processed}/{total_files}")
+			if processed % LOG_INTERVAL == 0 or processed == total_files:
+				print(f"Downsampling progress: {processed}/{total_files}")
 
 	return {"total": total_files, "processed": processed, "tile_size": new_size}
