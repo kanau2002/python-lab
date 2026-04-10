@@ -13,7 +13,6 @@ TILE_FILENAME_PATTERN = re.compile(r"tile_z(\d+)_x(\d+)_y(\d+)\.tif$")
 GROUP_SIZE = 35
 STEP_SIZE = 33
 LOG_INTERVAL = 1000
-OVERWRITE = False
 
 
 def parse_tile_filename(filename: str) -> tuple[int, int, int] | None:
@@ -45,20 +44,14 @@ def _create_mosaic_group(
 	output_path: Path,
 	group_size: int,
 	tile_size: int,
-	overwrite: bool,
 ) -> bool:
-	if output_path.exists() and not overwrite:
-		return False
-
 	output_size = group_size * tile_size
 	mosaic = np.zeros((4, output_size, output_size), dtype=np.uint8)
 	tile_count = 0
 
 	for i in range(group_size):
 		for j in range(group_size):
-			tile_x = base_x + i
-			tile_y = base_y + j
-			tile_path = tiles_dict.get((tile_x, tile_y))
+			tile_path = tiles_dict.get((base_x + i, base_y + j))
 			if tile_path is None:
 				continue
 
@@ -123,7 +116,6 @@ def run_group_mosaicking(input_dir: Path, output_dir: Path) -> dict[str, int]:
 		parsed = parse_tile_filename(tile_file.name)
 		if parsed is None:
 			continue
-
 		z, x, y = parsed
 		tiles_dict[(x, y)] = tile_file
 		if zoom_level is None:
@@ -145,7 +137,6 @@ def run_group_mosaicking(input_dir: Path, output_dir: Path) -> dict[str, int]:
 
 	group_id = 0
 	created = 0
-	skipped = 0
 	empty = 0
 	processed_groups = 0
 
@@ -155,9 +146,8 @@ def run_group_mosaicking(input_dir: Path, output_dir: Path) -> dict[str, int]:
 			base_y = min_y - 1 + gy * STEP_SIZE
 
 			output_path = output_dir / f"mosaic_group_{group_id:03d}_x{base_x}_y{base_y}.tif"
-			before_exists = output_path.exists()
 
-			created_now = _create_mosaic_group(
+			if _create_mosaic_group(
 				tiles_dict=tiles_dict,
 				base_x=base_x,
 				base_y=base_y,
@@ -165,29 +155,17 @@ def run_group_mosaicking(input_dir: Path, output_dir: Path) -> dict[str, int]:
 				output_path=output_path,
 				group_size=GROUP_SIZE,
 				tile_size=tile_size,
-				overwrite=OVERWRITE,
-			)
-
-			if created_now:
+			):
 				created += 1
-			elif before_exists and not OVERWRITE:
-				skipped += 1
 			else:
 				empty += 1
 
 			group_id += 1
-
 			processed_groups += 1
 			if processed_groups % LOG_INTERVAL == 0 or processed_groups == total_groups:
 				print(
-					"Group mosaicking progress: "
-					f"{processed_groups}/{total_groups} "
-					f"(created={created}, skipped={skipped}, empty={empty})"
+					f"Group mosaicking progress: {processed_groups}/{total_groups} "
+					f"(created={created}, empty={empty})"
 				)
 
-	return {
-		"total_groups": total_groups,
-		"created": created,
-		"skipped": skipped,
-		"empty": empty,
-	}
+	return {"total_groups": total_groups, "created": created, "empty": empty}

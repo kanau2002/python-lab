@@ -34,19 +34,16 @@ def run_city(city: str) -> None:
 	downsample_dir = OUTPUT_ROOT / city / "downsampled"
 	mosaic_group_dir = OUTPUT_ROOT / city / "mosaic-groups"
 
+	if mosaic_group_dir.exists() and any(mosaic_group_dir.iterdir()):
+		print(f"skip: already processed: {city}")
+		return
+
 	print(f"start city: {city}")
 	downsample_result = downsampler.run_downsampling(input_dir, downsample_dir)
-	print(
-		f"downsample done: total={downsample_result['total']}, "
-		f"processed={downsample_result['processed']}, skipped={downsample_result['skipped']}"
-	)
+	print(f"downsample done: total={downsample_result['total']}, processed={downsample_result['processed']}")
 
 	mosaic_result = group_mosaicker.run_group_mosaicking(downsample_dir, mosaic_group_dir)
-	print(
-		f"mosaic done: total_groups={mosaic_result['total_groups']}, "
-		f"created={mosaic_result['created']}, skipped={mosaic_result['skipped']}, "
-		f"empty={mosaic_result['empty']}"
-	)
+	print(f"mosaic done: total_groups={mosaic_result['total_groups']}, created={mosaic_result['created']}, empty={mosaic_result['empty']}")
 	print(f"finish city: {city}")
 
 
@@ -55,13 +52,13 @@ def run_all_cities() -> None:
 		raise FileNotFoundError(f"Input root not found: {INPUT_ROOT}")
 
 	for city_dir in sorted(INPUT_ROOT.iterdir()):
-		if city_dir.is_dir():
+		if city_dir.is_dir() and "_downloading" not in city_dir.name:
 			run_city(city_dir.name)
 
 
 if __name__ == "__main__":
 	# CITY に以下のいずれかを設定（"all" or "浦安市".etc）
-	CITY = "浦安市"
+	CITY = "神崎町"
 	if CITY == "all":
 		run_all_cities()
 	else:
