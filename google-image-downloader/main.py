@@ -2,7 +2,7 @@ from pathlib import Path
 from util.tiles_coordinate_calculator import get_tiles_in_city
 from util.google_map_tiles_downloader import GoogleMapTilesDownloader
 
-OUTPUT_ROOT = Path("/Volumes/HDPH-UTV/google-satellite-image")
+OUTPUT_ROOT = Path("/Volumes/T7 Touch/google-satellite-image")
 # OUTPUT_ROOT = Path(__file__).parent / "output"
 CHECK_START = "all"
 

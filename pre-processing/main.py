@@ -5,9 +5,9 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-HDD_ROOT = Path("/Volumes/HDPH-UTV")
-INPUT_ROOT = HDD_ROOT / "google-satellite-image"
-OUTPUT_ROOT = HDD_ROOT / "pre-processing"
+SSD_ROOT = Path("/Volumes/T7 Touch")
+INPUT_ROOT = SSD_ROOT / "google-satellite-image"
+OUTPUT_ROOT = SSD_ROOT / "pre-processing"
 
 
 def _load_module(module_name: str, file_path: Path) -> ModuleType:

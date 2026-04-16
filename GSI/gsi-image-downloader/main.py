@@ -2,7 +2,7 @@ from pathlib import Path
 from util.tiles_coordinate_calculator import get_tiles_in_city
 from util.gsi_tiles_downloader import GsiTilesDownloader
 
-OUTPUT_ROOT = Path("/Volumes/HDPH-UTV/GSI/gsi-satellite-image")
+OUTPUT_ROOT = Path("/Volumes/T7 Touch/GSI/gsi-satellite-image")
 # OUTPUT_ROOT = Path(__file__).parent / "output"
 CHECK_START = "all"
 
