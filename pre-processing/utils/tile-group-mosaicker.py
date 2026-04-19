@@ -1,18 +1,25 @@
+# 衛星画像タイル群をグループ単位のモザイク画像に合成するモジュール。
+# tile_z{zoom}_x{x}_y{y}.tif 形式のタイルを GROUP_SIZE×GROUP_SIZE のグリッドで
+# 結合し、GeoTIFF として出力する。iter_mosaic_groups() でメモリ上に配列を
+# yield することで、中間ファイルなしに後段の処理へ渡すことができる。
+
 from __future__ import annotations
 
 import math
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
 import rasterio
-from rasterio.transform import from_bounds
+from rasterio.env import Env
 
 TILE_FILENAME_PATTERN = re.compile(r"tile_z(\d+)_x(\d+)_y(\d+)\.tif$")
 
 GROUP_SIZE = 35
 STEP_SIZE = 33
-LOG_INTERVAL = 1000
+LOG_INTERVAL = 10
+TILE_READ_WORKERS = 32
 
 
 def parse_tile_filename(filename: str) -> tuple[int, int, int] | None:
@@ -36,74 +43,64 @@ def _determine_tile_size(tile_path: Path) -> int:
 		return int(src.width)
 
 
-def _create_mosaic_group(
+def _read_tile(path: Path) -> np.ndarray:
+	with rasterio.open(path) as src:
+		return src.read()
+
+
+def _to_rgba(tile_data: np.ndarray, tile_size: int) -> np.ndarray:
+	if tile_data.shape[0] >= 4:
+		return tile_data[:4]
+	rgba = np.zeros((4, tile_size, tile_size), dtype=np.uint8)
+	if tile_data.shape[0] == 3:
+		rgba[:3] = tile_data
+	else:
+		rgba[0] = rgba[1] = rgba[2] = tile_data[0]
+	rgba[3] = 255
+	return rgba
+
+
+def _build_mosaic_array(
 	tiles_dict: dict[tuple[int, int], Path],
 	base_x: int,
 	base_y: int,
 	zoom: int,
-	output_path: Path,
 	group_size: int,
 	tile_size: int,
-) -> bool:
+) -> tuple[np.ndarray, tuple[float, float, float, float]] | None:
+	jobs = [
+		(i, j, path)
+		for i in range(group_size)
+		for j in range(group_size)
+		if (path := tiles_dict.get((base_x + i, base_y + j))) is not None
+	]
+	if not jobs:
+		return None
+
 	output_size = group_size * tile_size
 	mosaic = np.zeros((4, output_size, output_size), dtype=np.uint8)
-	tile_count = 0
 
-	for i in range(group_size):
-		for j in range(group_size):
-			tile_path = tiles_dict.get((base_x + i, base_y + j))
-			if tile_path is None:
-				continue
-
-			tile_count += 1
-			with rasterio.open(tile_path) as src:
-				tile_data = src.read()
-
-			if tile_data.shape[0] >= 4:
-				tile_rgba = tile_data[:4]
-			elif tile_data.shape[0] == 3:
-				tile_rgba = np.zeros((4, tile_size, tile_size), dtype=np.uint8)
-				tile_rgba[:3] = tile_data
-				tile_rgba[3] = 255
-			else:
-				tile_rgba = np.zeros((4, tile_size, tile_size), dtype=np.uint8)
-				tile_rgba[0] = tile_data[0]
-				tile_rgba[1] = tile_data[0]
-				tile_rgba[2] = tile_data[0]
-				tile_rgba[3] = 255
-
+	with ThreadPoolExecutor(max_workers=TILE_READ_WORKERS) as executor:
+		future_to_pos = {executor.submit(_read_tile, path): (i, j) for i, j, path in jobs}
+		for future in as_completed(future_to_pos):
+			i, j = future_to_pos[future]
+			tile_rgba = _to_rgba(future.result(), tile_size)
 			y_start = j * tile_size
 			x_start = i * tile_size
 			mosaic[:, y_start : y_start + tile_size, x_start : x_start + tile_size] = tile_rgba
 
-	if tile_count == 0:
-		return False
-
 	min_west, min_south, _, _ = tile_to_bounds(base_x, base_y + group_size - 1, zoom)
 	_, _, max_east, max_north = tile_to_bounds(base_x + group_size - 1, base_y, zoom)
-	transform = from_bounds(min_west, min_south, max_east, max_north, output_size, output_size)
-
-	with rasterio.open(
-		output_path,
-		"w",
-		driver="GTiff",
-		height=output_size,
-		width=output_size,
-		count=4,
-		dtype=np.uint8,
-		crs="EPSG:4326",
-		transform=transform,
-	) as dst:
-		dst.write(mosaic)
-
-	return True
+	return mosaic, (min_west, min_south, max_east, max_north)
 
 
-def run_group_mosaicking(input_dir: Path, output_dir: Path) -> dict[str, int]:
+def iter_mosaic_groups(
+	input_dir: Path,
+	group_size: int = GROUP_SIZE,
+	step_size: int = STEP_SIZE,
+):
 	if not input_dir.exists() or not input_dir.is_dir():
 		raise FileNotFoundError(f"Input directory not found: {input_dir}")
-
-	output_dir.mkdir(parents=True, exist_ok=True)
 
 	tiles_dict: dict[tuple[int, int], Path] = {}
 	zoom_level: int | None = None
@@ -131,41 +128,25 @@ def run_group_mosaicking(input_dir: Path, output_dir: Path) -> dict[str, int]:
 	min_x, max_x = min(x_coords), max(x_coords)
 	min_y, max_y = min(y_coords), max(y_coords)
 
-	x_groups = (max_x - min_x + STEP_SIZE) // STEP_SIZE
-	y_groups = (max_y - min_y + STEP_SIZE) // STEP_SIZE
+	x_groups = (max_x - min_x + step_size) // step_size
+	y_groups = (max_y - min_y + step_size) // step_size
 	total_groups = x_groups * y_groups
 
 	group_id = 0
-	created = 0
-	empty = 0
-	processed_groups = 0
+	processed = 0
 
-	for gx in range(x_groups):
-		for gy in range(y_groups):
-			base_x = min_x - 1 + gx * STEP_SIZE
-			base_y = min_y - 1 + gy * STEP_SIZE
+	with Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR"):
+		for gx in range(x_groups):
+			for gy in range(y_groups):
+				base_x = min_x - 1 + gx * step_size
+				base_y = min_y - 1 + gy * step_size
 
-			output_path = output_dir / f"mosaic_group_{group_id:03d}_x{base_x}_y{base_y}.tif"
+				result = _build_mosaic_array(tiles_dict, base_x, base_y, zoom_level, group_size, tile_size)
+				if result is not None:
+					mosaic_array, bounds = result
+					yield mosaic_array, bounds, group_id, base_x, base_y
 
-			if _create_mosaic_group(
-				tiles_dict=tiles_dict,
-				base_x=base_x,
-				base_y=base_y,
-				zoom=zoom_level,
-				output_path=output_path,
-				group_size=GROUP_SIZE,
-				tile_size=tile_size,
-			):
-				created += 1
-			else:
-				empty += 1
-
-			group_id += 1
-			processed_groups += 1
-			if processed_groups % LOG_INTERVAL == 0 or processed_groups == total_groups:
-				print(
-					f"Group mosaicking progress: {processed_groups}/{total_groups} "
-					f"(created={created}, empty={empty})"
-				)
-
-	return {"total_groups": total_groups, "created": created, "empty": empty}
+				group_id += 1
+				processed += 1
+				if processed % LOG_INTERVAL == 0 or processed == total_groups:
+					print(f"Mosaicking progress: {processed}/{total_groups}")

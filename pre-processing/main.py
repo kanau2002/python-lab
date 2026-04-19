@@ -1,9 +1,15 @@
+# 衛星画像の前処理パイプラインのエントリポイント。
+# 各都市のタイル群を tile-group-mosaicker.py でモザイク合成し、
+# group-downsampler.py でダウンサンプルして mosaic-groups/ に保存する。
+
 from __future__ import annotations
 
 import importlib.util
 import sys
+import time
 from pathlib import Path
 from types import ModuleType
+
 
 SSD_ROOT = Path("/Volumes/T7 Touch")
 INPUT_ROOT = SSD_ROOT / "google-satellite-image"
@@ -21,8 +27,8 @@ def _load_module(module_name: str, file_path: Path) -> ModuleType:
 
 
 base_dir = Path(__file__).resolve().parent
-downsampler = _load_module("tile_downsampler_module", base_dir / "utils" / "tile-downsampler.py")
 group_mosaicker = _load_module("tile_group_mosaicker_module", base_dir / "utils" / "tile-group-mosaicker.py")
+group_downsampler = _load_module("group_downsampler_module", base_dir / "utils" / "group-downsampler.py")
 
 
 def run_city(city: str) -> None:
@@ -31,20 +37,25 @@ def run_city(city: str) -> None:
 		print(f"skip: input not found: {input_dir}")
 		return
 
-	downsample_dir = OUTPUT_ROOT / city / "downsampled"
 	mosaic_group_dir = OUTPUT_ROOT / city / "mosaic-groups"
 
 	if mosaic_group_dir.exists() and any(mosaic_group_dir.iterdir()):
 		print(f"skip: already processed: {city}")
 		return
 
+	mosaic_group_dir.mkdir(parents=True, exist_ok=True)
 	print(f"start city: {city}")
-	downsample_result = downsampler.run_downsampling(input_dir, downsample_dir)
-	print(f"downsample done: total={downsample_result['total']}, processed={downsample_result['processed']}")
 
-	mosaic_result = group_mosaicker.run_group_mosaicking(downsample_dir, mosaic_group_dir)
-	print(f"mosaic done: total_groups={mosaic_result['total_groups']}, created={mosaic_result['created']}, empty={mosaic_result['empty']}")
-	print(f"finish city: {city}")
+	created = 0
+	t0 = time.perf_counter()
+
+	for mosaic_array, bounds, group_id, base_x, base_y in group_mosaicker.iter_mosaic_groups(input_dir):
+		output_path = mosaic_group_dir / f"mosaic_group_{group_id:03d}_x{base_x}_y{base_y}.tif"
+		group_downsampler.downsample_group_array(mosaic_array, bounds, output_path)
+		created += 1
+		print(f"  saved group_{group_id:03d} (total saved: {created}, elapsed: {time.perf_counter() - t0:.1f}s)")
+
+	print(f"finish city: {city}, created={created}, total: {time.perf_counter() - t0:.1f}s")
 
 
 def run_all_cities() -> None:
@@ -58,7 +69,7 @@ def run_all_cities() -> None:
 
 if __name__ == "__main__":
 	# CITY に以下のいずれかを設定（"all" or "浦安市".etc）
-	CITY = "白井市"
+	CITY = "千葉市"
 	if CITY == "all":
 		run_all_cities()
 	else:
