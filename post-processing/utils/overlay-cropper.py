@@ -2,31 +2,29 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 import rasterio
 from rasterio.transform import from_bounds
 
-GROUP_SIZE_FOR_CROP = 35
-WORKERS = 4
-LOG_INTERVAL = 1000
-OVERWRITE = False
-
-
-def _calculate_safe_crop_size(height: int, width: int) -> int:
-	# For 35x35 mosaics, crop 1 tile per edge: 5425->155, 5390->154.
-	estimated_tile_size = int(round(min(height, width) / GROUP_SIZE_FOR_CROP))
+def _calculate_safe_crop_size(height: int, width: int, group_size: int) -> int:
+	# For NxN mosaics, crop 1 tile per edge.
+	estimated_tile_size = int(round(min(height, width) / group_size))
 	safe_limit = min((height - 1) // 2, (width - 1) // 2)
 	return max(0, min(estimated_tile_size, safe_limit))
 
 
-def _crop_tif(input_path: Path, output_path: Path) -> tuple[str, int]:
-	if output_path.exists() and not OVERWRITE:
+def _crop_tif(
+	input_path: Path, output_path: Path, overwrite: bool, group_size: int
+) -> tuple[str, int]:
+	if output_path.exists() and not overwrite:
 		return "skipped", 0
 
 	with rasterio.open(input_path) as src:
 		data = src.read()
 		h, w = data.shape[1], data.shape[2]
-		crop_size = _calculate_safe_crop_size(h, w)
+		crop_size = _calculate_safe_crop_size(h, w, group_size)
 
 		if crop_size <= 0 or h <= crop_size * 2 or w <= crop_size * 2:
 			return "too_small", crop_size
@@ -65,7 +63,103 @@ def _crop_tif(input_path: Path, output_path: Path) -> tuple[str, int]:
 	return "processed", crop_size
 
 
-def run_overlay_cropping(input_dir: Path, output_dir: Path) -> dict[str, int]:
+def _crop_tif_in_memory(
+	input_path: Path, group_size: int
+) -> tuple[np.ndarray, Any, str] | None:
+	with rasterio.open(input_path) as src:
+		data = src.read(1)
+		h, w = data.shape
+		crop_size = _calculate_safe_crop_size(h, w, group_size)
+
+		if crop_size <= 0 or h <= crop_size * 2 or w <= crop_size * 2:
+			return None
+
+		cropped = data[crop_size : h - crop_size, crop_size : w - crop_size]
+		new_h, new_w = cropped.shape
+
+		bounds = src.bounds
+		pw = (bounds.right - bounds.left) / w
+		ph = (bounds.top - bounds.bottom) / h
+
+		new_bounds = (
+			bounds.left + crop_size * pw,
+			bounds.bottom + crop_size * ph,
+			bounds.right - crop_size * pw,
+			bounds.top - crop_size * ph,
+		)
+		transform = from_bounds(*new_bounds, new_w, new_h)
+
+	return cropped, transform, input_path.name
+
+
+def run_overlay_cropping_in_memory(
+	input_dir: Path,
+	group_size_for_crop: int = 35,
+	workers: int = 4,
+	log_interval: int = 1000,
+) -> tuple[list[tuple[np.ndarray, Any, str]], dict[str, int]]:
+	if not input_dir.exists() or not input_dir.is_dir():
+		raise FileNotFoundError(f"Input directory not found: {input_dir}")
+
+	tif_files = sorted(p for p in input_dir.glob("*.tif") if not p.name.startswith("._"))
+	if not tif_files:
+		raise FileNotFoundError(f"No tif files found in: {input_dir}")
+
+	total = len(tif_files)
+	tiles: list[tuple[np.ndarray, Any, str]] = []
+	too_small = 0
+	min_crop_used: int | None = None
+	max_crop_used: int | None = None
+
+	def _process(path: Path) -> tuple[np.ndarray, Any, str] | None:
+		return _crop_tif_in_memory(path, group_size_for_crop)
+
+	if workers <= 1:
+		for idx, tif_path in enumerate(tif_files, start=1):
+			result = _process(tif_path)
+			if result is None:
+				too_small += 1
+			else:
+				tiles.append(result)
+				crop_size = _calculate_safe_crop_size(result[0].shape[0], result[0].shape[1], group_size_for_crop)
+				if min_crop_used is None or crop_size < min_crop_used:
+					min_crop_used = crop_size
+				if max_crop_used is None or crop_size > max_crop_used:
+					max_crop_used = crop_size
+			if idx % log_interval == 0 or idx == total:
+				print(f"Overlay crop progress: {idx}/{total} (loaded={len(tiles)}, too_small={too_small})")
+	else:
+		completed = 0
+		with ThreadPoolExecutor(max_workers=workers) as executor:
+			futures = {executor.submit(_process, p): p for p in tif_files}
+			for future in as_completed(futures):
+				result = future.result()
+				if result is None:
+					too_small += 1
+				else:
+					tiles.append(result)
+				completed += 1
+				if completed % log_interval == 0 or completed == total:
+					print(f"Overlay crop progress: {completed}/{total} (loaded={len(tiles)}, too_small={too_small})")
+
+	stats = {
+		"total": total,
+		"processed": len(tiles),
+		"too_small": too_small,
+		"min_crop": min_crop_used if min_crop_used is not None else 0,
+		"max_crop": max_crop_used if max_crop_used is not None else 0,
+	}
+	return tiles, stats
+
+
+def run_overlay_cropping(
+	input_dir: Path,
+	output_dir: Path,
+	overwrite: bool = False,
+	group_size_for_crop: int = 35,
+	workers: int = 4,
+	log_interval: int = 1000,
+) -> dict[str, int]:
 	if not input_dir.exists() or not input_dir.is_dir():
 		raise FileNotFoundError(f"Input directory not found: {input_dir}")
 
@@ -84,9 +178,9 @@ def run_overlay_cropping(input_dir: Path, output_dir: Path) -> dict[str, int]:
 
 	jobs = [(tif_file, output_dir / tif_file.name) for tif_file in tif_files]
 
-	if WORKERS <= 1:
+	if workers <= 1:
 		for idx, (input_path, output_path) in enumerate(jobs, start=1):
-			status, crop_used = _crop_tif(input_path, output_path)
+			status, crop_used = _crop_tif(input_path, output_path, overwrite, group_size_for_crop)
 			if status == "processed":
 				processed += 1
 				if min_crop_used is None or crop_used < min_crop_used:
@@ -98,7 +192,7 @@ def run_overlay_cropping(input_dir: Path, output_dir: Path) -> dict[str, int]:
 			else:
 				too_small += 1
 
-			if idx % LOG_INTERVAL == 0 or idx == total:
+			if idx % log_interval == 0 or idx == total:
 				print(
 					"Overlay crop progress: "
 					f"{idx}/{total} "
@@ -106,9 +200,9 @@ def run_overlay_cropping(input_dir: Path, output_dir: Path) -> dict[str, int]:
 				)
 	else:
 		completed = 0
-		with ThreadPoolExecutor(max_workers=WORKERS) as executor:
+		with ThreadPoolExecutor(max_workers=workers) as executor:
 			futures = {
-				executor.submit(_crop_tif, input_path, output_path): (input_path, output_path)
+				executor.submit(_crop_tif, input_path, output_path, overwrite, group_size_for_crop): (input_path, output_path)
 				for input_path, output_path in jobs
 			}
 			for future in as_completed(futures):
@@ -125,7 +219,7 @@ def run_overlay_cropping(input_dir: Path, output_dir: Path) -> dict[str, int]:
 					too_small += 1
 
 				completed += 1
-				if completed % LOG_INTERVAL == 0 or completed == total:
+				if completed % log_interval == 0 or completed == total:
 					print(
 						"Overlay crop progress: "
 						f"{completed}/{total} "

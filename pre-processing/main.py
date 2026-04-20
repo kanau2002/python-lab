@@ -69,7 +69,7 @@ def run_all_cities() -> None:
 
 if __name__ == "__main__":
 	# CITY に以下のいずれかを設定（"all" or "浦安市".etc）
-	CITY = "千葉市"
+	CITY = "横芝光町"
 	if CITY == "all":
 		run_all_cities()
 	else:

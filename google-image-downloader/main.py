@@ -7,7 +7,7 @@ OUTPUT_ROOT = Path("/Volumes/T7 Touch/google-satellite-image")
 CHECK_START = "all"
 
 def main():
-    city_name = "八街市"
+    city_name = "多古町"
     zoom_level = 20
     
     tiles = get_tiles_in_city(city_name, zoom_level)
