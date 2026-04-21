@@ -21,8 +21,9 @@ MERGE_BUFFER_DEG = 1e-5  # ≈1.1m: compensates ~4px erosion at tile seams
 
 # polygon-exporter
 MIN_AREA_SQM = 11.5      # 国土交通省基準: 5.0m × 2.3m
-SIMPLIFY_TOL_DEG = 2e-6  # ≈0.2m = 1px at 0.2m/px resolution
+SIMPLIFY_TOL_DEG = 5e-6  # ≈0.5m: pre-regularization coarse simplification
 OUTPUT_FORMAT = "GPKG"
+REGULARIZE_POLYGONS = True
 
 WORKERS = 4
 LOG_INTERVAL = 1000
@@ -101,6 +102,7 @@ def run_city(city: str) -> None:
 		min_area_sqm=MIN_AREA_SQM,
 		simplify_tol_deg=SIMPLIFY_TOL_DEG,
 		output_format=OUTPUT_FORMAT,
+		regularize=REGULARIZE_POLYGONS,
 	)
 	print(
 		f"[{city}] export done: "
