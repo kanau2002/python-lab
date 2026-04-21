@@ -63,7 +63,10 @@ def run_city(city: str) -> None:
 		print(f"skip: input not found: {input_dir}")
 		return
 
-	output_gpkg = OUTPUT_ROOT / city / f"{city}_parking_lots.gpkg"
+	output_gpkg = OUTPUT_ROOT / f"{city}.gpkg"
+	if output_gpkg.exists():
+		print(f"skip: already processed: {output_gpkg}")
+		return
 
 	print(f"[{city}] start")
 
@@ -120,7 +123,7 @@ def run_all_cities() -> None:
 
 if __name__ == "__main__":
 	# CITY に以下のいずれかを設定（"all" or "浦安市".etc）
-	CITY = "千葉市"
+	CITY = "all"
 	if CITY == "all":
 		run_all_cities()
 	else:
