@@ -17,7 +17,7 @@ from rasterio.env import Env
 TILE_FILENAME_PATTERN = re.compile(r"tile_z(\d+)_x(\d+)_y(\d+)\.tif$")
 
 GROUP_SIZE = 35
-STEP_SIZE = 33
+STEP_SIZE = GROUP_SIZE - 2
 LOG_INTERVAL = 10
 TILE_READ_WORKERS = 32
 
