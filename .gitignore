@@ -30,3 +30,4 @@ __pycache__/
 *.json
 *.xml
 *.aux.xml
+output.pdf
