@@ -55,6 +55,7 @@ def run_city(city: str) -> None:
 		group_downsampler.downsample_group_array(mosaic_array, bounds, output_path)
 		created += 1
 		print(f"  saved group_{group_id:03d} (total saved: {created}, elapsed: {time.perf_counter() - t0:.1f}s)")
+		del mosaic_array
 
 	print(f"finish city: {city}, created={created}, total: {time.perf_counter() - t0:.1f}s")
 
@@ -70,7 +71,7 @@ def run_all_cities() -> None:
 
 if __name__ == "__main__":
 	# CITY に以下のいずれかを設定（"all" or "浦安市".etc）
-	CITY = "長南町"
+	CITY = "茂原市"
 	if CITY == "all":
 		run_all_cities()
 	else:
