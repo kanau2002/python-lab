@@ -76,7 +76,7 @@ class GoogleMapTilesDownloader:
                     raise
                 time.sleep(2 ** attempt)  # 1, 2, 4, 8秒と増加
 
-    def download_tiles(self, tiles: list, zoom: int, check_start: str = "all"):
+    def download_tiles(self, tiles: list, zoom: int, check_start: str = "all", max_tiles: str = "free"):
         start_index = 0 if check_start == "all" else int(check_start)
         existing_files = {
             path.name for path in self.output_dir.glob(f"tile_z{zoom}_x*_y*.tif")
@@ -113,6 +113,12 @@ class GoogleMapTilesDownloader:
                     try:
                         last_saved = future.result()
                         count += 1
+                        if max_tiles != "free" and count >= int(max_tiles):
+                            print(f"{max_tiles}枚に達したため終了します: {count}枚")
+                            for f in in_flight:
+                                f.cancel()
+                            in_flight.clear()
+                            break
                         if count % 100 == 0:
                             print(f"進捗: {count}/{len(pending)}枚")
                         submit_next()
