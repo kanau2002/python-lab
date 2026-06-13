@@ -8,7 +8,7 @@ CHECK_START = "all"
 MAX_TILES = "free"
 
 def main():
-    city_name = "袖ケ浦市"
+    city_name = "いすみ市"
     zoom_level = 20
     
     tiles = get_tiles_in_city(city_name, zoom_level)

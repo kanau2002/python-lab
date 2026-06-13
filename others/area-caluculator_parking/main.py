@@ -31,9 +31,9 @@ for gpkg_path in sorted(INPUT_PARKING_DIR.glob("*.gpkg")):
 
     records.append({
         "地域名": region,
-        "市町村総面積_km2": round(total_municipality_m2 / 1_000_000, 6),
+        "市町村総面積_km2": round(total_municipality_m2 / 1_000_000, 2),
+        "駐車場総面積_km2": round(parking_m2 / 1_000_000, 3),
         "駐車場数": len(gdf),
-        "駐車場総面積_km2": round(parking_m2 / 1_000_000, 6),
     })
 
 result = pd.DataFrame(records).sort_values("市町村総面積_km2", ascending=False).reset_index(drop=True)
