@@ -8,6 +8,8 @@ from types import ModuleType
 SSD_ROOT = Path("/Volumes/T7 Touch")
 INPUT_ROOT = SSD_ROOT / "predicted-mask"
 OUTPUT_ROOT = SSD_ROOT / "post-processing"
+# INPUT_ROOT = Path.home() / "Desktop" / "input_PV"
+# OUTPUT_ROOT = Path.home() / "Desktop" / "output_PV"
 
 # overlay-cropper
 GROUP_SIZE_FOR_CROP = 35
@@ -21,6 +23,7 @@ MERGE_BUFFER_DEG = 1e-5  # ≈1.1m: compensates ~4px erosion at tile seams
 
 # polygon-exporter
 MIN_AREA_SQM = 11.5      # 国土交通省基準: 5.0m × 2.3m
+# MIN_AREA_SQM = 180
 SIMPLIFY_TOL_DEG = 5e-6  # ≈0.5m: pre-regularization coarse simplification
 OUTPUT_FORMAT = "GPKG"
 REGULARIZE_POLYGONS = True
