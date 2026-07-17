@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +7,9 @@ from scipy import stats
 
 plt.rcParams['font.family'] = 'Hiragino Sans'
 
-df = pd.read_csv('input_parking/area_by_region.csv')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+df = pd.read_csv(os.path.join(BASE_DIR, 'input_parking/area_by_region_all.csv'))
 y = df['駐車場総面積_km2'].values
 names = df['地域名'].values
 
@@ -99,5 +102,6 @@ for ax, cfg in zip(axes, configs):
 
 plt.tight_layout()
 plt.subplots_adjust(wspace=0.08)
-plt.savefig('output/scatter_plots.png', dpi=150, bbox_inches='tight')
-print('Saved: output/scatter_plots.png')
+output_path = os.path.join(BASE_DIR, 'output/scatter_plots.png')
+plt.savefig(output_path, dpi=150, bbox_inches='tight')
+print(f'Saved: {output_path}')

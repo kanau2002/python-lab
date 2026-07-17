@@ -5,7 +5,7 @@ from util.google_map_tiles_downloader import GoogleMapTilesDownloader
 OUTPUT_ROOT = Path("/Volumes/T7 Touch/google-satellite-image")
 # OUTPUT_ROOT = Path(__file__).parent / "output"
 CHECK_START = "all"
-MAX_TILES = "5600"
+MAX_TILES = "99800"
 
 def main():
     city_name = "君津市"
