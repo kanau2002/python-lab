@@ -18,9 +18,12 @@ car_df.columns = ["地域名", "乗用車数"]
 car_df["地域名"] = car_df["地域名"].replace("千葉市計", "千葉市")
 
 park_df = pd.read_csv(os.path.join(BASE_DIR, "input_parking/area_by_region.csv"))
+pv_df = pd.read_csv(os.path.join(BASE_DIR, "input_pv/area_by_region.csv"))
 
-merged = pd.merge(park_df, pop_df, on="地域名")
+merged = pd.merge(park_df, pv_df, on=["地域名", "市町村総面積_km2"])
+merged = pd.merge(merged, pop_df, on="地域名")
 merged = pd.merge(merged, car_df, on="地域名")
+merged = merged[["地域名", "市町村総面積_km2", "駐車場総面積_km2", "駐車場数", "PV総面積_km2", "PV数", "人口", "乗用車数"]]
 
 output_dir = os.path.join(BASE_DIR, "output")
 os.makedirs(output_dir, exist_ok=True)

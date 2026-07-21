@@ -23,12 +23,14 @@ configs = [
         'outlier_sigma': 1.25,
     },
     {
-        'x_col': '駐車場数',
-        'title': '駐車場数',
-        'x_label': '駐車場数',
-        'x_tick': 10000,
-        'x_fmt': lambda x, _: f'{x/10000:.0f}万' if x > 0 else '0',
-        'outlier_sigma': 2.0,
+        'x_col': 'PV総面積_km2',
+        'title': 'PV総面積',
+        'x_label': 'PV総面積 (km²)',
+        'x_tick': 1,
+        'x_fmt': None,
+        'outlier_sigma': 1.2,
+        'x_lim_match_y': True,
+        'show_diagonal': True,
     },
     {
         'x_col': '人口',
@@ -66,7 +68,7 @@ for ax, cfg in zip(axes, configs):
 
     x_line = np.linspace(0, x.max() * 1.05, 300)
     ax.plot(x_line, slope * x_line + intercept, color='gray', linewidth=1.5,
-            linestyle='--', zorder=2)
+            linestyle='-', zorder=2)
 
     # Annotate outliers
     for i in np.where(outlier_mask)[0]:
@@ -89,8 +91,16 @@ for ax, cfg in zip(axes, configs):
         ax.set_ylabel('駐車場総面積 (km²)', fontsize=10)
     else:
         ax.set_ylabel('')
-    ax.set_xlim(left=0)
     ax.set_ylim(bottom=0)
+    if cfg.get('x_lim_match_y'):
+        ax.set_xlim(0, ax.get_ylim()[1])
+    else:
+        ax.set_xlim(left=0)
+
+    if cfg.get('show_diagonal'):
+        diag_max = min(ax.get_xlim()[1], ax.get_ylim()[1])
+        ax.plot([0, diag_max], [0, diag_max], color='lightgray', linewidth=1,
+                linestyle='--', zorder=1)
 
     if cfg['x_tick']:
         ax.xaxis.set_major_locator(ticker.MultipleLocator(cfg['x_tick']))

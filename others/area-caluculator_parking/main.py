@@ -4,6 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
 INPUT_PARKING_DIR = BASE_DIR / "input_parking"
+# INPUT_PARKING_DIR = BASE_DIR / "input_pv"
 INPUT_BOUNDARY_DIR = BASE_DIR / "input_boundary"
 OUTPUT_PATH = BASE_DIR / "output/area_by_region.csv"
 
@@ -33,7 +34,9 @@ for gpkg_path in sorted(INPUT_PARKING_DIR.glob("*.gpkg")):
         "地域名": region,
         "市町村総面積_km2": round(total_municipality_m2 / 1_000_000, 2),
         "駐車場総面積_km2": round(parking_m2 / 1_000_000, 3),
+        # "PV総面積_km2": round(parking_m2 / 1_000_000, 3), # PV
         "駐車場数": len(gdf),
+        # "PV数": len(gdf), # PV
     })
 
 result = pd.DataFrame(records).sort_values("市町村総面積_km2", ascending=False).reset_index(drop=True)
