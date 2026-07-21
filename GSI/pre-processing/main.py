@@ -5,8 +5,9 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+HDD_ROOT = Path("/Volumes/HDPH-UTV")
 SSD_ROOT = Path("/Volumes/T7 Touch")
-INPUT_ROOT = SSD_ROOT / "GSI" / "gsi-satellite-image"
+INPUT_ROOT = HDD_ROOT / "GSI" / "gsi-satellite-image"
 OUTPUT_ROOT = SSD_ROOT / "GSI" / "pre-processing"
 
 
@@ -58,7 +59,7 @@ def run_all_cities() -> None:
 
 if __name__ == "__main__":
     # CITY に以下のいずれかを設定（"all" or "浦安市" etc）
-    CITY = "浦安市"
+    CITY = "一宮町"
     if CITY == "all":
         run_all_cities()
     else:
