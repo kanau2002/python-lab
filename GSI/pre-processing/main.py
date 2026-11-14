@@ -6,9 +6,8 @@ import tempfile
 from pathlib import Path
 from types import ModuleType
 
-HDD_ROOT = Path("/Volumes/HDPH-UTV")
 SSD_ROOT = Path("/Volumes/T7 Touch")
-INPUT_ROOT = HDD_ROOT / "GSI" / "gsi-satellite-image"
+INPUT_ROOT = SSD_ROOT / "GSI" / "gsi-satellite-image"
 OUTPUT_ROOT = SSD_ROOT / "GSI" / "pre-processing"
 
 
