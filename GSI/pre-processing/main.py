@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 from pathlib import Path
 from types import ModuleType
 
@@ -32,18 +33,19 @@ def run_city(city: str) -> None:
         print(f"skip: input not found: {input_dir}")
         return
 
-    upsample_dir = OUTPUT_ROOT / city / "upsampled"
-    mosaic_group_dir = OUTPUT_ROOT / city / "mosaic-groups"
+    mosaic_group_dir = OUTPUT_ROOT / city
 
     if mosaic_group_dir.exists() and any(mosaic_group_dir.iterdir()):
         print(f"skip: already processed: {city}")
         return
 
     print(f"start city: {city}")
-    upsample_result = upsampler.run_resampling(input_dir, upsample_dir)
-    print(f"upsample done: total={upsample_result['total']}, processed={upsample_result['processed']}, tile_size={upsample_result['tile_size']}px")
+    with tempfile.TemporaryDirectory(prefix="upsampled_") as upsample_dir_str:
+        upsample_dir = Path(upsample_dir_str)
+        upsample_result = upsampler.run_resampling(input_dir, upsample_dir)
+        print(f"upsample done: total={upsample_result['total']}, processed={upsample_result['processed']}, tile_size={upsample_result['tile_size']}px")
 
-    mosaic_result = group_mosaicker.run_group_mosaicking(upsample_dir, mosaic_group_dir)
+        mosaic_result = group_mosaicker.run_group_mosaicking(upsample_dir, mosaic_group_dir)
     print(f"mosaic done: total_groups={mosaic_result['total_groups']}, created={mosaic_result['created']}, empty={mosaic_result['empty']}")
     print(f"finish city: {city}")
 
@@ -59,7 +61,7 @@ def run_all_cities() -> None:
 
 if __name__ == "__main__":
     # CITY に以下のいずれかを設定（"all" or "浦安市" etc）
-    CITY = "一宮町"
+    CITY = "all"
     if CITY == "all":
         run_all_cities()
     else:

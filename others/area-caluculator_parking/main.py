@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
 INPUT_PARKING_DIR = BASE_DIR / "input_parking"
-# INPUT_PARKING_DIR = BASE_DIR / "input_pv"
+# INPUT_PARKING_DIR = BASE_DIR / "input_pv" # PV
 INPUT_BOUNDARY_DIR = BASE_DIR / "input_boundary"
 OUTPUT_PATH = BASE_DIR / "output/area_by_region.csv"
 

@@ -31,6 +31,7 @@ configs = [
         'outlier_sigma': 1.2,
         'x_lim_match_y': True,
         'show_diagonal': True,
+        'stats_loc': 'bottom-right',
     },
     {
         'x_col': '人口',
@@ -81,8 +82,12 @@ for ax, cfg in zip(axes, configs):
                     xytext=(xoff, yoff), fontsize=9, ha=ha, color='dimgray')
 
     stats_text = f'$n$ = {n}\n$r$ = {r_val:.3f}\nRMSE = {rmse:.3f}'
-    ax.text(0.05, 0.95, stats_text, transform=ax.transAxes,
-            verticalalignment='top', fontsize=9,
+    if cfg.get('stats_loc') == 'bottom-right':
+        stats_x, stats_y, stats_va, stats_ha = 0.95, 0.05, 'bottom', 'right'
+    else:
+        stats_x, stats_y, stats_va, stats_ha = 0.05, 0.95, 'top', 'left'
+    ax.text(stats_x, stats_y, stats_text, transform=ax.transAxes,
+            verticalalignment=stats_va, horizontalalignment=stats_ha, fontsize=9,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='lightgray'))
 
     ax.set_title(cfg['title'], fontsize=12, fontweight='bold')
